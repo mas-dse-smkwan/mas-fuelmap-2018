@@ -1,4 +1,4 @@
-FROM ubuntu:latest
+FROM gcr.io/tensorflow/tensorflow:latest-gpu
 MAINTAINER Daniel Crawl <danielcrawl@gmail.com>
 
 RUN apt-get update && \
@@ -54,12 +54,14 @@ RUN curl -sL --retry 3 \
   && chown -R root:root $SPARK_HOME
 
 RUN pip install --upgrade pip && \
-    pip install jupyterlab pyspark
+    pip install jupyterlab \
+        keras \
+        pyspark
 
 ENV PYTHONPATH="$SPARK_HOME/python:$SPARK_HOME/python/build:$PYTHONPATH"
 ENV PYTHONPATH="$SPARK_HOME/python/lib/py4j-0.10.4-src.zip:$PYTHONPATH"
 
-RUN mkdir /root/.jupyter
+#RUN mkdir /root/.jupyter
 ADD jupyter_notebook_config.py /root/.jupyter
 
 EXPOSE 8888
