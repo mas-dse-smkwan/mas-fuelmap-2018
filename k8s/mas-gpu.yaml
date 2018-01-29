@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mas-gpu
+  labels:
+    k8s-app: mas-gpu
+  namespace: mas-fuelmap
+spec:
+  containers:
+  - name: mas-gpu
+    image: sdsc/mas-gpu:latest
+    imagePullPolicy: Always
+    # args: ["sleep", "36500000"]
+    args: ["python", "/usr/local/bin/jupyter-notebook", "--ip=*", "--port=8888", "--allow-root", "--NotebookApp.iopub_data_rate_limit=2147483647"]
+    resources:
+      limits:
+        #memory: "8G"
+        #cpu: 4
+        nvidia.com/gpu: 4
+      #requests:
+        #memory: "8G"
+        #cpu: 4
+  restartPolicy: Never
+---
+kind: Service
+apiVersion: v1
+metadata:
+  labels:
+    k8s-app: mas-gpu
+  name: mas-gpu
+  namespace: mas-fuelmap
+spec:
+  type: NodePort
+  ports:
+  - port: 8888
+    name: web
+  selector:
+    k8s-app: mas-gpu
