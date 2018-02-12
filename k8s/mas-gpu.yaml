@@ -20,6 +20,7 @@ spec:
       #requests:
         #memory: "8G"
         #cpu: 4
+        nvidia.com/gpu: 4
   restartPolicy: Never
 ---
 kind: Service
