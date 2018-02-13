@@ -8,7 +8,7 @@ metadata:
 spec:
   containers:
   - name: mas-gpu
-    image: sdsc/mas-gpu:latest
+    image: sdsc/words-tensorflow:latest
     imagePullPolicy: Always
     # args: ["sleep", "36500000"]
     args: ["python", "/usr/local/bin/jupyter-notebook", "--ip=*", "--port=8888", "--allow-root", "--NotebookApp.iopub_data_rate_limit=2147483647"]
