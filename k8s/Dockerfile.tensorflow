@@ -61,6 +61,7 @@ RUN pip install --upgrade pip && \
 ENV PYTHONPATH="$SPARK_HOME/python:$SPARK_HOME/python/build:$PYTHONPATH"
 ENV PYTHONPATH="$SPARK_HOME/python/lib/py4j-0.10.4-src.zip:$PYTHONPATH"
 
+# already exists in tensorflow image
 #RUN mkdir /root/.jupyter
 ADD jupyter_notebook_config.py /root/.jupyter
 
