@@ -1,5 +1,4 @@
-#FROM bvlc/caffe:gpu
-FROM mapler/caffe-py3:gpu
+FROM ufoym/deepo:caffe-py36
 MAINTAINER Daniel Crawl <danielcrawl@gmail.com>
 
 RUN apt-get update && \
