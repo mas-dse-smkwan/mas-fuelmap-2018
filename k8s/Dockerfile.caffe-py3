@@ -1,13 +1,15 @@
 FROM ufoym/deepo:caffe-py36
 MAINTAINER Daniel Crawl <danielcrawl@gmail.com>
 
-RUN apt-get update && \
+# PACKAGES
+RUN add-apt-repository -y ppa:ubuntugis/ubuntugis-unstable && \
+    apt-get update && \
     apt-get upgrade -y && \
     apt-get install -y \
         curl \
         gdal-bin \
         git \
-        python3-gdal \
+        libgdal-dev \
         python3-pip \
         subversion \
         vim && \
@@ -53,8 +55,12 @@ RUN curl -sL --retry 3 \
   && mv /usr/$SPARK_PACKAGE $SPARK_HOME \
   && chown -R root:root $SPARK_HOME
 
+ENV C_INCLUDE_PATH=/usr/include/gdal/
+ENV CPLUS_INCLUDE_PATH=/usr/include/gdal/
+
 RUN pip3 install --upgrade pip && \
-    pip3 install jupyter \
+    pip3 install gdal \
+        jupyter \
         keras \
         pyspark \
         sklearn 
