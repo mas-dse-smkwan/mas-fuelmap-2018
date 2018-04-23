@@ -13,14 +13,21 @@ def get_img(loc_img, **keyword_parameters):
         image[:, :, b] = band.ReadAsArray()
         
     # band formulas from https://www.indexdatabase.de
-    
-    # ndvi [nir, red], this is 0 index referenced, not actually related to the satellite band order
-    if ('ndvi' in keyword_parameters):
-        image = np.dstack((image,((image[:,:,keyword_parameters['ndvi']['nir']] - image[:,:,keyword_parameters['ndvi']['red']]) / (image[:,:,keyword_parameters['ndvi']['nir']] + image[:,:,keyword_parameters['ndvi']['red']]))))
-        
-    # evi [nir, red, blue], this is 0 index referenced, not actually related to the satellite band order
-    if ('evi' in keyword_parameters):
-        image = np.dstack((image,(2.5 * ((image[:,:,keyword_parameters['evi']['nir']] - image[:,:,keyword_parameters['evi']['red']]) / ((image[:,:,keyword_parameters['evi']['nir']] + 6 * image[:,:,keyword_parameters['evi']['red']] - 7.5 * image[:,:,keyword_parameters['evi']['blue']]) + 1)))))
+    if ('extraindexbands' in keyword_parameters):
+        for indexband in keyword_parameters['extraindexbands']:
+            # ndvi [nir, red], this is 0 index referenced, not actually related to the satellite band order
+            if (indexband['type'] == 'ndvi'):
+                image = np.dstack((image,((image[:,:,indexband['nir']] - image[:,:,indexband['red']]) / (image[:,:,indexband['nir']] + image[:,:,indexband['red']]))))
+
+            # evi [nir, red, blue], this is 0 index referenced, not actually related to the satellite band order
+            if (indexband['type'] == 'evi'):
+                image = np.dstack((image,(2.5 * ((image[:,:,indexband['nir']] - image[:,:,indexband['red']]) / ((image[:,:,indexband['nir']] + 6 * image[:,:,indexband['red']] - 7.5 * image[:,:,indexband['blue']]) + 1)))))
+
+    # force correct proportions for image
+    if ('forceproportion' in keyword_parameters):
+        image = image[:(image.shape[0] // keyword_parameters['forceproportion'][0] * keyword_parameters['forceproportion'][0]),\
+                      :(image.shape[1] // keyword_parameters['forceproportion'][1] * keyword_parameters['forceproportion'][1]),\
+                      :]
     
     return image
 
@@ -31,7 +38,18 @@ def get_label(loc_label, **keyword_parameters):
                  dtype=gdal_array.GDALTypeCodeToNumericTypeCode(image_datatype))
     band = ds.GetRasterBand(1)
     image[:, :, 0] = band.ReadAsArray()
-    return image   
+
+    # Expand pixel by multiple
+    if 'repeatlabel' in keyword_parameters:
+        image = np.repeat(np.repeat(image,keyword_parameters['repeatlabel'],axis=1),keyword_parameters['repeatlabel'],axis=0)
+
+    # force correct proportions for image
+    if ('forceproportion' in keyword_parameters):
+        image = image[:(image.shape[0] // keyword_parameters['forceproportion'][0] * keyword_parameters['forceproportion'][0]),\
+                      :(image.shape[1] // keyword_parameters['forceproportion'][1] * keyword_parameters['forceproportion'][1]),\
+                      :]
+
+    return image
 
 # https://github.com/dariopavllo/road-segmentation/blob/master/helpers.py
 
@@ -40,8 +58,8 @@ def label_crop(im, w, h, stride):
     list_patches = []
     imgwidth = im.shape[1]
     imgheight = im.shape[0]
-    for i in range(0,imgheight,stride):
-        for j in range(0,imgwidth,stride):
+    for i in range(0,imgheight - h + 1,stride):
+        for j in range(0,imgwidth - w + 1,stride):
             im_patch = im[i:i+h, j:j+w]
             list_patches.append(im_patch)
     return list_patches
@@ -52,8 +70,8 @@ def img_crop(im, w, h, stride, padding):
     imgwidth = im.shape[1]
     imgheight = im.shape[0]
     im = np.lib.pad(im, ((padding, padding), (padding, padding), (0,0)), 'reflect')
-    for i in range(padding,imgheight+padding,stride):
-        for j in range(padding,imgwidth+padding,stride):
+    for i in range(padding,imgheight + padding - h + 1,stride):
+        for j in range(padding,imgwidth + padding - w + 1,stride):
             im_patch = im[i-padding:i+h+padding, j-padding:j+w+padding, :]
             list_patches.append(im_patch)
     return list_patches
