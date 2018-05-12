@@ -12,16 +12,30 @@ def get_img(loc_img, **keyword_parameters):
         band = ds.GetRasterBand(b + 1)
         image[:, :, b] = band.ReadAsArray()
         
+    # normalize original bands by integer
+    if ('normalizebands' in keyword_parameters):
+        image = image / keyword_parameters['normalizebands']
+        
     # band formulas from https://www.indexdatabase.de
     if ('extraindexbands' in keyword_parameters):
         for indexband in keyword_parameters['extraindexbands']:
             # ndvi [nir, red], this is 0 index referenced, not actually related to the satellite band order
             if (indexband['type'] == 'ndvi'):
-                image = np.dstack((image,((image[:,:,indexband['nir']] - image[:,:,indexband['red']]) / (image[:,:,indexband['nir']] + image[:,:,indexband['red']]))))
+                image = np.dstack((image,np.clip(((image[:,:,indexband['nir']] - image[:,:,indexband['red']]) / (image[:,:,indexband['nir']] + image[:,:,indexband['red']])),-1,1)))
 
             # evi [nir, red, blue], this is 0 index referenced, not actually related to the satellite band order
             if (indexband['type'] == 'evi'):
-                image = np.dstack((image,(2.5 * ((image[:,:,indexband['nir']] - image[:,:,indexband['red']]) / ((image[:,:,indexband['nir']] + 6 * image[:,:,indexband['red']] - 7.5 * image[:,:,indexband['blue']]) + 1)))))
+                image = np.dstack((image,np.clip((2.5 * ((image[:,:,indexband['nir']] - image[:,:,indexband['red']]) / ((image[:,:,indexband['nir']] + 6 * image[:,:,indexband['red']] - 7.5 * image[:,:,indexband['blue']]) + 1))),-1,1)))
+
+            # ccci [nir, red, rededge], this is 0 index referenced, not actually related to the satellite band order
+            if (indexband['type'] == 'ccci'):
+                image = np.dstack((image, np.clip((((image[:,:,indexband['nir']] - image[:,:,indexband['rededge']]) / (image[:,:,indexband['nir']] + image[:,:,indexband['rededge']])) /\
+                                  ((image[:,:,indexband['nir']] - image[:,:,indexband['red']] + 0.0001) / (image[:,:,indexband['nir']] + image[:,:,indexband['red']])) ),\
+                                 -1,1)))
+
+            # savi [nir, red, L], this is 0 index referenced, not actually related to the satellite band order
+            if (indexband['type'] == 'savi'):
+                image = np.dstack((image, np.clip(( (1+indexband['L']) * ((image[:,:,indexband['nir']] - image[:,:,indexband['red']]) / (image[:,:,indexband['nir']] + image[:,:,indexband['red']] + indexband['L']))) ,-1,1)))
 
     # force correct proportions for image
     if ('forceproportion' in keyword_parameters):
