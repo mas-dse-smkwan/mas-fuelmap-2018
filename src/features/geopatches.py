@@ -3,7 +3,11 @@ import os
 from osgeo import osr, gdal,gdal_array
 import h5py
 
-def get_img(loc_img, **keyword_parameters):
+def get_dim(loc_img):
+    ds = gdal.Open(loc_img, gdal.GA_ReadOnly)
+    return ds.RasterYSize, ds.RasterXSize
+
+def get_img(loc_img, dict_imgprop={}, **keyword_parameters):
     ds = gdal.Open(loc_img, gdal.GA_ReadOnly)
     image_datatype = ds.GetRasterBand(1).DataType
     image = np.zeros((ds.RasterYSize, ds.RasterXSize, ds.RasterCount),
@@ -42,10 +46,25 @@ def get_img(loc_img, **keyword_parameters):
         image = image[:(image.shape[0] // keyword_parameters['forceproportion'][0] * keyword_parameters['forceproportion'][0]),\
                       :(image.shape[1] // keyword_parameters['forceproportion'][1] * keyword_parameters['forceproportion'][1]),\
                       :]
+
+    # Force padding of image for prediction just in case tiles aren't exactly a multiple
+    if ('forcemodelmultiple' in keyword_parameters):
+        if (keyword_parameters['forcemodelmultiple'] == True):
+            dict_imgprop['height'] == dict_imgprop['stride'], 'forcemodelmultiple only works when height = stride'
+            dict_imgprop['width'] == dict_imgprop['stride'], 'forcemodelmultiple only works when width = stride'
+            extra_height = dict_imgprop['height'] - image.shape[0] % dict_imgprop['height'] if image.shape[0] % dict_imgprop['height'] > 0 else 0
+            extra_width = dict_imgprop['width'] - image.shape[1] % dict_imgprop['width'] if image.shape[1] % dict_imgprop['width'] else 0
+            image = np.lib.pad(image, ((0, extra_height),\
+                                       (0, extra_width),\
+                                       (0,0)), 'reflect')
+
+    # this is 0 index referenced, not actually related to the satellite band order
+    if ('selectbands' in keyword_parameters):
+        image = image[...,keyword_parameters['selectbands']]
     
     return image
 
-def get_label(loc_label, **keyword_parameters):
+def get_label(loc_label, dict_labelprop={}, **keyword_parameters):
     ds = gdal.Open(loc_label, gdal.GA_ReadOnly)
     image_datatype = ds.GetRasterBand(1).DataType
     image = np.zeros((ds.RasterYSize, ds.RasterXSize, 1),
@@ -62,6 +81,17 @@ def get_label(loc_label, **keyword_parameters):
         image = image[:(image.shape[0] // keyword_parameters['forceproportion'][0] * keyword_parameters['forceproportion'][0]),\
                       :(image.shape[1] // keyword_parameters['forceproportion'][1] * keyword_parameters['forceproportion'][1]),\
                       :]
+
+    # Force padding of image for prediction just in case tiles aren't exactly a multiple
+    if ('forcemodelmultiple' in keyword_parameters):
+        if (keyword_parameters['forcemodelmultiple'] == True):
+            dict_labelprop['height'] == dict_labelprop['stride'], 'forcemodelmultiple only works when height = stride'
+            dict_labelprop['width'] == dict_labelprop['stride'], 'forcemodelmultiple only works when width = stride'
+            extra_height = dict_labelprop['height'] - image.shape[0] % dict_labelprop['height'] if image.shape[0] % dict_labelprop['height'] > 0 else 0
+            extra_width = dict_labelprop['width'] - image.shape[1] % dict_labelprop['width'] if image.shape[1] % dict_labelprop['width'] else 0
+            image = np.lib.pad(image, ((0, extra_height),\
+                                       (0, extra_width),\
+                                       (0,0)), 'reflect')
 
     return image
 
@@ -111,10 +141,10 @@ def create_data(list_imgdir, dict_imgprop, list_labeldir, dict_labelprop, **keyw
     arrays_label = []
     
     for imgdir in list_imgdir:
-        arrays_image.append(get_img(imgdir, **keyword_parameters))
+        arrays_image.append(get_img(imgdir, dict_imgprop, **keyword_parameters))
         
     for labeldir in list_labeldir:
-        arrays_label.append(get_label(labeldir, **keyword_parameters))
+        arrays_label.append(get_label(labeldir, dict_labelprop, **keyword_parameters))
 
     patches_data = create_patches_img(np.stack(arrays_image, axis=0),dict_imgprop['width'],dict_imgprop['height'],dict_imgprop['stride'],dict_imgprop['padding'])
     patches_label = create_patches_label(np.stack(arrays_label, axis=0),dict_labelprop['width'],dict_labelprop['height'],dict_labelprop['stride'])
@@ -128,6 +158,16 @@ def create_data(list_imgdir, dict_imgprop, list_labeldir, dict_labelprop, **keyw
         print ('Saved data in', keyword_parameters['save_location'])
     
     return patches_data, patches_label
+
+def create_datasingle(imgdir,dict_imgprop,**keyword_parameters):
+    # dictionary properties for image: width, height, stride, padding
+    # single file only
+    
+    arrays_image = []
+    arrays_image.append(get_img(imgdir, dict_imgprop, **keyword_parameters))
+    patches_data = create_patches_img(np.stack(arrays_image, axis=0),dict_imgprop['width'],dict_imgprop['height'],dict_imgprop['stride'],dict_imgprop['padding'])
+    
+    return patches_data, arrays_image[0].shape, get_dim(imgdir)
 
 # Load h5py data
 def load_data(save_location):
